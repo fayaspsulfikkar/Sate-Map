@@ -2,6 +2,7 @@ import { PointPrimitiveCollection, Cartesian3, Color, JulianDate } from 'cesium'
 import type { Viewer } from 'cesium';
 import type { SatelliteData } from './tleLoader';
 import type { UIController } from '../ui/controls';
+import OrbitWorker from '../workers/orbitWorker?worker';
 
 export class SatelliteManager {
   private viewer: Viewer;
@@ -22,12 +23,16 @@ export class SatelliteManager {
       blendOption: 2 // Opaque / Translucent combination (Cesium.BlendOption.OPAQUE_AND_TRANSLUCENT)
     }));
 
-    // Initialize worker
-    this.worker = new Worker(new URL('../workers/orbitWorker.ts', import.meta.url), {
-      type: 'module'
-    });
+    // Initialize worker using Vite's ?worker import
+    this.worker = new OrbitWorker();
 
     this.worker.onmessage = this.handleWorkerMessage.bind(this);
+    this.worker.onerror = (err) => {
+      console.error('Worker failed:', err);
+      if (_ui && _ui.setStatus) {
+        _ui.setStatus('Worker crashed. Please check console.');
+      }
+    };
   }
 
   async initialize(data: SatelliteData[]) {
