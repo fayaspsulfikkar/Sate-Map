@@ -1,21 +1,27 @@
 body, html {
   margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   background-color: #000;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 #cesiumContainer {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   display: block;
   position: absolute;
   top: 0;
   left: 0;
   z-index: 0;
+}
+
+.cesium-viewer {
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden;
 }
 
 #uiContainer {
