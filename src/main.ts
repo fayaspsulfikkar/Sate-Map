@@ -1,28 +1,39 @@
 import { Viewer } from 'cesium';
+import './style.css';
 import { setupUI } from './ui/controls';
 import { TLELoader } from './satellites/tleLoader';
 import { SatelliteManager } from './satellites/satelliteManager';
 
 async function bootstrap() {
-  // 1. Initialize Cesium Viewer
-  const viewer = await initializeViewer();
-  
-  // 2. Setup UI panels
-  const ui = setupUI(viewer);
+  let ui;
+  try {
+    // 1. Initialize Cesium Viewer
+    const viewer = await initializeViewer();
+    
+    // 2. Setup UI panels
+    ui = setupUI(viewer);
 
-  // 3. Initialize Satellite Manager
-  const satelliteManager = new SatelliteManager(viewer, ui);
+    // 3. Initialize Satellite Manager
+    const satelliteManager = new SatelliteManager(viewer, ui);
 
-  // 4. Load TLE Data
-  const loader = new TLELoader();
-  ui.setStatus('Fetching TLE data...');
-  const tles = await loader.loadActiveSatellites();
-  
-  // 5. Initialize Orbits & Render
-  ui.setStatus(`Loaded ${tles.length} satellites. Computing orbits...`);
-  await satelliteManager.initialize(tles);
-  
-  ui.setStatus('System Ready', true);
+    // 4. Load TLE Data
+    const loader = new TLELoader();
+    ui.setStatus('Fetching TLE data...');
+    const tles = await loader.loadActiveSatellites();
+    
+    // 5. Initialize Orbits & Render
+    ui.setStatus(`Loaded ${tles.length} satellites. Computing orbits...`);
+    await satelliteManager.initialize(tles);
+    
+    ui.setStatus('System Ready', true);
+  } catch (err: any) {
+    console.error("Bootstrap Error:", err);
+    if (ui) {
+      ui.setStatus(`Error: ${err.message || 'Check console'}`);
+    } else {
+      document.body.innerHTML += `<div style="position: absolute; top: 10px; left: 10px; color: red; z-index: 9999; background: black; padding: 10px;">Fatal Error: ${err.message}</div>`;
+    }
+  }
 }
 
 async function initializeViewer(): Promise<Viewer> {
