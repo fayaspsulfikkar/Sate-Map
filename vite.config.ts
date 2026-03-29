@@ -6,5 +6,14 @@ export default defineConfig({
   plugins: [cesium()],
   worker: {
     format: 'es'
+  },
+  server: {
+    proxy: {
+      '/api/tle': {
+        target: 'https://celestrak.org/NORAD/elements/gp.php',
+        changeOrigin: true,
+        rewrite: () => '?GROUP=active&FORMAT=tle'
+      }
+    }
   }
 });

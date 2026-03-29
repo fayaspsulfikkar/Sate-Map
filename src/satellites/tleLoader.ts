@@ -27,8 +27,12 @@ export class TLELoader {
       }
     }
 
+    // Determine fetch URL dynamically to bypass localhost CORS
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const fetchUrl = isLocalhost ? '/api/tle' : this.CELESTRAK_URL;
+
     // Fetch new
-    const response = await fetch(this.CELESTRAK_URL);
+    const response = await fetch(fetchUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch TLE data: ${response.statusText}`);
     }
