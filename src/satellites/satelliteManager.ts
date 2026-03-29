@@ -1,13 +1,14 @@
-import { PointPrimitiveCollection, Cartesian3, Color, JulianDate } from 'cesium';
-import type { Viewer } from 'cesium';
+import { Cartesian3, Color, JulianDate, ColorBlendMode } from 'cesium';
+import type { Viewer, Entity } from 'cesium';
 import type { SatelliteData } from './tleLoader';
 import type { UIController } from '../ui/controls';
 import OrbitWorker from '../workers/orbitWorker?worker';
+import satelliteUrl from '../assets/satellite.glb?url';
 
 export class SatelliteManager {
   private viewer: Viewer;
   // private ui: UIController;
-  private points: PointPrimitiveCollection;
+  private entities: Entity[] = [];
   private worker: Worker;
   // private satData: SatelliteData[] = [];
   
@@ -17,12 +18,8 @@ export class SatelliteManager {
   constructor(viewer: Viewer, _ui: UIController) {
     this.viewer = viewer;
     // this.ui = _ui;
+    this.viewer = viewer;
     
-    // Use PointPrimitiveCollection for GPU instancing
-    this.points = this.viewer.scene.primitives.add(new PointPrimitiveCollection({
-      blendOption: 2 // Opaque / Translucent combination (Cesium.BlendOption.OPAQUE_AND_TRANSLUCENT)
-    }));
-
     // Initialize worker using Vite's ?worker import
     this.worker = new OrbitWorker();
 
@@ -36,23 +33,35 @@ export class SatelliteManager {
   }
 
   async initialize(data: SatelliteData[]) {
-    // this.satData = data;
-    this.points.removeAll();
+    this.viewer.entities.removeAll();
     this.pointCount = data.length;
+    this.entities = [];
 
-    // Create primitives. Initially placed at center of earth
+    // Create 3D Entity primitives. Initially placed at center of earth
     for (let i = 0; i < data.length; i++) {
         const sat = data[i];
         let color = Color.fromCssColorString('#a0c0ff'); // LEO Default Blue-ish
         if (sat.type === 'MEO') color = Color.fromCssColorString('#ffc040'); // Orange-ish
         if (sat.type === 'GEO') color = Color.fromCssColorString('#ff6060'); // Red-ish
 
-        this.points.add({
+        const entity = this.viewer.entities.add({
+            id: sat.id + '_' + i,
+            name: sat.name,
             position: new Cartesian3(0, 0, 0),
-            color: color,
-            pixelSize: 4,
-            id: sat // This ID goes securely to picking handler
+            model: {
+                uri: satelliteUrl,
+                minimumPixelSize: 32, // Always visible
+                maximumScale: 20000, 
+                color: color,
+                colorBlendMode: ColorBlendMode.MIX,
+                colorBlendAmount: 0.5
+            }
         });
+        
+        // Attach data for picking logic
+        (entity as any)._satData = sat;
+        
+        this.entities.push(entity);
     }
 
     // Send initial TLE payload to Worker
@@ -96,10 +105,10 @@ export class SatelliteManager {
              const y = positions[i + 1];
              const z = positions[i + 2];
              
-             const pt = this.points.get(ptIndex);
+             const pt = this.entities[ptIndex];
              // 0 values from worker often indicate orbital error (decayed, or invalid TLE for time)
              if (x !== 0 || y !== 0 || z !== 0) {
-                 pt.position = new Cartesian3(x, y, z);
+                 pt.position = new Cartesian3(x, y, z) as any;
                  pt.show = true;
              } else {
                  pt.show = false;

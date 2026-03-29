@@ -71,7 +71,8 @@ export function setupUI(viewer: Viewer): UIController {
   handler.setInputAction((movement: any) => {
     const pickedObject = viewer.scene.pick(movement.position);
     if (defined(pickedObject) && pickedObject.id) {
-       showSatelliteInfo(pickedObject.id);
+       const sat = pickedObject.id._satData || pickedObject.id;
+       showSatelliteInfo(sat);
     } else {
        showSatelliteInfo(null);
     }
