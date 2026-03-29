@@ -41,9 +41,8 @@ export class TLELoader {
     const data = this.parseTLE(text);
 
     // Filter to avoid overwhelming memory initially
-    // The requirement says "limit initial load to 500-1000" but our worker can handle all 8000+!
-    // We'll limit to 3000 to ensure completely smooth 60fps on mid-range devices while being visually impressive.
-    const limitedData = data.slice(0, 3000);
+    // 3D Elements are incredibly heavy. We limit to 500 to ensure 60fps
+    const limitedData = data.slice(0, 500);
 
     localStorage.setItem(this.CACHE_KEY, JSON.stringify(limitedData));
     localStorage.setItem(this.CACHE_TIME_KEY, now.toString());

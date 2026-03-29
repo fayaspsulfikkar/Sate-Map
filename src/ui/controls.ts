@@ -8,26 +8,29 @@ export interface UIController {
 export function setupUI(viewer: Viewer): UIController {
   const container = document.getElementById('uiContainer')!;
 
-  // 1. Controls Panel (Top Right)
-  const controlsPanel = document.createElement('div');
-  controlsPanel.className = 'panel controls-panel';
+  // Detailed Cinematic HUD Panel (Left Align)
+  const hudContainer = document.createElement('div');
+  hudContainer.className = 'hud-container';
   
-  const title = document.createElement('h2');
-  title.innerText = 'System Status';
-  controlsPanel.appendChild(title);
+  // Header / System Status
+  const header = document.createElement('div');
+  header.className = 'hud-header';
+  header.innerHTML = `
+    <div class="hud-brand">SATELLITE <span class="brand-accent">TRACKER</span></div>
+    <div class="hud-sys-status"><div class="status-indicator"></div> <span id="sys-status">INITIALIZING SYSTEMS</span></div>
+  `;
+  hudContainer.appendChild(header);
 
-  const statusEl = document.createElement('div');
-  statusEl.className = 'data-row';
-  statusEl.innerHTML = `<span class="data-label">Status:</span> <span class="data-value" id="sys-status">Initializing...</span>`;
-  controlsPanel.appendChild(statusEl);
-
-  // Time controls
+  // Time Controls
+  const timeSection = document.createElement('div');
+  timeSection.className = 'hud-section';
+  timeSection.innerHTML = `<div class="section-title">TEMPORAL ENGINE</div>`;
   const timeControls = document.createElement('div');
   timeControls.className = 'btn-group';
   
-  const speeds = [1, 10, 100];
-  speeds.forEach(speed => {
+  [1, 10, 100].forEach(speed => {
     const btn = document.createElement('button');
+    btn.className = 'hud-btn';
     btn.innerText = `${speed}x`;
     btn.onclick = () => {
       viewer.clock.multiplier = speed;
@@ -37,67 +40,76 @@ export function setupUI(viewer: Viewer): UIController {
   });
   
   const pauseBtn = document.createElement('button');
-  pauseBtn.innerText = 'Pause';
+  pauseBtn.className = 'hud-btn btn-danger';
+  pauseBtn.innerText = 'PAUSE';
   pauseBtn.onclick = () => {
     viewer.clock.shouldAnimate = !viewer.clock.shouldAnimate;
-    pauseBtn.innerText = viewer.clock.shouldAnimate ? 'Pause' : 'Resume';
+    pauseBtn.innerText = viewer.clock.shouldAnimate ? 'PAUSE' : 'RESUME';
+    pauseBtn.classList.toggle('active', !viewer.clock.shouldAnimate);
   };
   timeControls.appendChild(pauseBtn);
-  controlsPanel.appendChild(timeControls);
-  container.appendChild(controlsPanel);
+  timeSection.appendChild(timeControls);
+  hudContainer.appendChild(timeSection);
 
-  // 2. Info Panel (Bottom Right)
-  const infoPanel = document.createElement('div');
-  infoPanel.className = 'panel info-panel';
-  infoPanel.id = 'sat-info-panel';
+  // Telemetry Dashboard (Hidden by default, shown on click)
+  const telemetry = document.createElement('div');
+  telemetry.className = 'hud-telemetry';
+  telemetry.id = 'sat-info-panel';
   
-  const satTitle = document.createElement('h2');
-  satTitle.innerText = 'Satellite Data';
-  satTitle.id = 'sat-name';
-  infoPanel.appendChild(satTitle);
+  telemetry.innerHTML = `
+    <div class="telemetry-header">
+      <div class="target-locked">TARGET LOCKED</div>
+      <h2 id="sat-name">UNKNOWN</h2>
+    </div>
+    <div class="telemetry-grid">
+      <div class="t-cell"><span class="t-label">NORAD ID</span><span class="t-val" id="sat-norad-id">--</span></div>
+      <div class="t-cell"><span class="t-label">TYPE</span><span class="t-val" id="sat-type">--</span></div>
+      <div class="t-cell"><span class="t-label">ALTITUDE</span><span class="t-val" id="sat-altitude">--</span></div>
+      <div class="t-cell"><span class="t-label">VELOCITY</span><span class="t-val" id="sat-velocity">--</span></div>
+    </div>
+  `;
+  hudContainer.appendChild(telemetry);
 
-  const fields = ['NORAD ID', 'Altitude', 'Velocity', 'Type'];
-  fields.forEach(f => {
-    const row = document.createElement('div');
-    row.className = 'data-row';
-    row.innerHTML = `<span class="data-label">${f}:</span> <span class="data-value" id="sat-${f.toLowerCase().replace(' ', '-')}">--</span>`;
-    infoPanel.appendChild(row);
-  });
+  container.appendChild(hudContainer);
 
-  container.appendChild(infoPanel);
-
-  // Setup Picking (Clicking on Satellites)
+  // Setup Picking (Clicking on Satellites) & Camera Tracking
   const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((movement: any) => {
     const pickedObject = viewer.scene.pick(movement.position);
     if (defined(pickedObject) && pickedObject.id) {
+       // Lock camera to the 3D model!
+       viewer.trackedEntity = pickedObject.id;
+       
        const sat = pickedObject.id._satData || pickedObject.id;
        showSatelliteInfo(sat);
     } else {
+       viewer.trackedEntity = undefined;
        showSatelliteInfo(null);
     }
   }, ScreenSpaceEventType.LEFT_CLICK);
 
   function setStatus(msg: string, isReady = false) {
     const el = document.getElementById('sys-status');
-    if (el) {
-      el.innerText = msg;
-      el.style.color = isReady ? '#4caf50' : '#e0e8f5';
+    const indicator = document.querySelector('.status-indicator') as HTMLElement;
+    if (el && indicator) {
+      el.innerText = msg.toUpperCase();
+      indicator.style.background = isReady ? '#00e676' : '#ffea00';
+      indicator.style.boxShadow = isReady ? '0 0 10px #00e676' : '0 0 10px #ffea00';
     }
   }
 
   function showSatelliteInfo(info: any | null) {
     if (info) {
-      infoPanel.classList.add('visible');
+      telemetry.classList.add('visible');
       document.getElementById('sat-name')!.innerText = info.name || 'UNKNOWN';
       document.getElementById('sat-norad-id')!.innerText = info.id || '--';
       
-      // We will update altitude and velocity dynamically later, just setting initial values here
-      document.getElementById('sat-altitude')!.innerText = info.altitude ? `${info.altitude.toFixed(2)} km` : 'Calc...';
-      document.getElementById('sat-velocity')!.innerText = info.velocity ? `${info.velocity.toFixed(2)} km/s` : 'Calc...';
+      // Update data elements dynamically
+      document.getElementById('sat-altitude')!.innerText = info.altitude ? `${(info.altitude).toFixed(1)} KM` : 'CALC...';
+      document.getElementById('sat-velocity')!.innerText = info.velocity ? `${(info.velocity).toFixed(2)} KM/S` : 'CALC...';
       document.getElementById('sat-type')!.innerText = info.type || 'N/A';
     } else {
-      infoPanel.classList.remove('visible');
+      telemetry.classList.remove('visible');
     }
   }
 

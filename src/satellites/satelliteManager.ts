@@ -1,9 +1,8 @@
-import { Cartesian3, Color, JulianDate, ColorBlendMode } from 'cesium';
+import { Cartesian3, Color, JulianDate, DistanceDisplayCondition } from 'cesium';
 import type { Viewer, Entity } from 'cesium';
 import type { SatelliteData } from './tleLoader';
 import type { UIController } from '../ui/controls';
 import OrbitWorker from '../workers/orbitWorker?worker';
-import satelliteUrl from '../assets/satellite.glb?url';
 
 export class SatelliteManager {
   private viewer: Viewer;
@@ -48,13 +47,29 @@ export class SatelliteManager {
             id: sat.id + '_' + i,
             name: sat.name,
             position: new Cartesian3(0, 0, 0),
-            model: {
-                uri: satelliteUrl,
-                minimumPixelSize: 32, // Always visible
-                maximumScale: 20000, 
+            // Distant View (Glowing Dot)
+            point: {
+                pixelSize: 4,
                 color: color,
-                colorBlendMode: ColorBlendMode.MIX,
-                colorBlendAmount: 0.5
+                outlineColor: Color.WHITE,
+                outlineWidth: 1,
+                distanceDisplayCondition: new DistanceDisplayCondition(200000.0, Number.MAX_VALUE)
+            },
+            // The satellite core (True Scale Box - 5 meters long)
+            box: {
+                dimensions: new Cartesian3(5.0, 2.0, 2.0),
+                material: color,
+                outline: true,
+                outlineColor: Color.BLACK,
+                distanceDisplayCondition: new DistanceDisplayCondition(0.0, 200000.0)
+            },
+            // The satellite dish/antenna (True Scale Cylinder - 4 meters long)
+            cylinder: {
+                length: 4.0,
+                topRadius: 1.0,
+                bottomRadius: 0.0,
+                material: Color.fromCssColorString('#ffffff'),
+                distanceDisplayCondition: new DistanceDisplayCondition(0.0, 200000.0)
             }
         });
         
