@@ -1,4 +1,4 @@
-import { Cartesian3, Color, JulianDate, DistanceDisplayCondition, ArcType } from 'cesium';
+import { Cartesian3, Color, JulianDate, DistanceDisplayCondition, ArcType, CallbackPositionProperty } from 'cesium';
 import { twoline2satrec, propagate, gstime, eciToEcf } from 'satellite.js';
 import type { Viewer, Entity } from 'cesium';
 import type { SatelliteData } from './tleLoader';
@@ -10,10 +10,10 @@ export class SatelliteManager {
   // private ui: UIController;
   private entities: Entity[] = [];
   private worker: Worker;
-  // private satData: SatelliteData[] = [];
-  
-  // Mapping index directly to point for fast updates
+  // High-performance shared memory pools
   private pointCount = 0;
+  private positionsArray: Float32Array = new Float32Array(0);
+  private cartesianCache: Cartesian3[] = [];
 
   constructor(viewer: Viewer, _ui: UIController) {
     this.viewer = viewer;
@@ -36,8 +36,12 @@ export class SatelliteManager {
     this.viewer.entities.removeAll();
     this.pointCount = data.length;
     this.entities = [];
+    
+    // Allocate memory blocks
+    this.positionsArray = new Float32Array(this.pointCount * 3);
+    this.cartesianCache = Array.from({length: this.pointCount}, () => new Cartesian3());
 
-    // Create 3D Entity primitives. Initially placed at center of earth
+    // Create 3D Entity primitives dynamically referencing the Float32Array memory
     for (let i = 0; i < data.length; i++) {
         const sat = data[i];
         let color = Color.fromCssColorString('#a0c0ff'); // LEO Default Blue-ish
@@ -47,7 +51,17 @@ export class SatelliteManager {
         const entity = this.viewer.entities.add({
             id: sat.id + '_' + i,
             name: sat.name,
-            position: new Cartesian3(0, 0, 0),
+            position: new CallbackPositionProperty(() => {
+                const idx = i * 3;
+                const x = this.positionsArray[idx];
+                if (x === 0) return undefined; // Hidden/Error
+                
+                const c = this.cartesianCache[i];
+                c.x = x;
+                c.y = this.positionsArray[idx + 1];
+                c.z = this.positionsArray[idx + 2];
+                return c;
+            }, false),
             // Distant View (Glowing Dot)
             point: {
                 pixelSize: 2, // Tiny dot
@@ -114,23 +128,8 @@ export class SatelliteManager {
              return;
           }
 
-          // Buffer comes back as [x1, y1, z1, x2, y2, z2...] in meters
-          let ptIndex = 0;
-          for (let i = 0; i < positions.length; i += 3) {
-             const x = positions[i];
-             const y = positions[i + 1];
-             const z = positions[i + 2];
-             
-             const pt = this.entities[ptIndex];
-             // 0 values from worker often indicate orbital error (decayed, or invalid TLE for time)
-             if (x !== 0 || y !== 0 || z !== 0) {
-                 pt.position = new Cartesian3(x, y, z) as any;
-                 pt.show = true;
-             } else {
-                 pt.show = false;
-             }
-             ptIndex++;
-          }
+          // Zero-allocation fast memory copy
+          this.positionsArray.set(positions);
       }
   }
 
