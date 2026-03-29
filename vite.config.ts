@@ -3,7 +3,7 @@ import cesium from 'vite-plugin-cesium';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/Sate-Map/',
+  base: './',
   plugins: [cesium()],
   worker: {
     format: 'es'
