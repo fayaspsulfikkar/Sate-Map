@@ -42,7 +42,7 @@ self.onmessage = (e: MessageEvent) => {
                 
                 if (positionAndVelocity.position && typeof positionAndVelocity.position !== 'boolean') {
                     // Convert ECI to ECF (Earth-centered, Earth-fixed) for Cesium which spins with the earth
-                    const positionEcf = eciToEcf(positionAndVelocity.position as any, gmst);
+                    const positionEcf = eciToEcf(positionAndVelocity.position as any, gmst) as any;
                     
                     // satellite.js outputs km. Cesium needs meters.
                     positionBuffer[bufIdx] = positionEcf.x * 1000;

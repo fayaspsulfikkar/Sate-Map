@@ -3,6 +3,7 @@ import { Viewer, defined, ScreenSpaceEventHandler, ScreenSpaceEventType } from '
 export interface UIController {
   setStatus: (msg: string, isReady?: boolean) => void;
   showSatelliteInfo: (info: any | null) => void;
+  onSatelliteClicked?: (sat: any | null) => void;
 }
 
 export function setupUI(viewer: Viewer): UIController {
@@ -72,6 +73,8 @@ export function setupUI(viewer: Viewer): UIController {
 
   container.appendChild(hudContainer);
 
+  const controller: UIController = { setStatus, showSatelliteInfo };
+
   // Setup Picking (Clicking on Satellites) & Camera Tracking
   const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((movement: any) => {
@@ -82,9 +85,11 @@ export function setupUI(viewer: Viewer): UIController {
        
        const sat = pickedObject.id._satData || pickedObject.id;
        showSatelliteInfo(sat);
+       if (controller.onSatelliteClicked) controller.onSatelliteClicked(sat);
     } else {
        viewer.trackedEntity = undefined;
        showSatelliteInfo(null);
+       if (controller.onSatelliteClicked) controller.onSatelliteClicked(null);
     }
   }, ScreenSpaceEventType.LEFT_CLICK);
 
@@ -113,5 +118,5 @@ export function setupUI(viewer: Viewer): UIController {
     }
   }
 
-  return { setStatus, showSatelliteInfo };
+  return controller;
 }

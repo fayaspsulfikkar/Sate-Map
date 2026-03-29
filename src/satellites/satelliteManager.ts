@@ -1,4 +1,5 @@
-import { Cartesian3, Color, JulianDate, DistanceDisplayCondition } from 'cesium';
+import { Cartesian3, Color, JulianDate, DistanceDisplayCondition, ArcType } from 'cesium';
+import { twoline2satrec, propagate, gstime, eciToEcf } from 'satellite.js';
 import type { Viewer, Entity } from 'cesium';
 import type { SatelliteData } from './tleLoader';
 import type { UIController } from '../ui/controls';
@@ -49,27 +50,27 @@ export class SatelliteManager {
             position: new Cartesian3(0, 0, 0),
             // Distant View (Glowing Dot)
             point: {
-                pixelSize: 4,
+                pixelSize: 2, // Tiny dot
                 color: color,
                 outlineColor: Color.WHITE,
-                outlineWidth: 1,
-                distanceDisplayCondition: new DistanceDisplayCondition(200000.0, Number.MAX_VALUE)
+                outlineWidth: 0,
+                distanceDisplayCondition: new DistanceDisplayCondition(150000.0, Number.MAX_VALUE)
             },
-            // The satellite core (True Scale Box - 5 meters long)
+            // The satellite core (True Scale Box - tiny 2.5 meters)
             box: {
-                dimensions: new Cartesian3(5.0, 2.0, 2.0),
+                dimensions: new Cartesian3(2.5, 1.0, 1.0),
                 material: color,
                 outline: true,
                 outlineColor: Color.BLACK,
-                distanceDisplayCondition: new DistanceDisplayCondition(0.0, 200000.0)
+                distanceDisplayCondition: new DistanceDisplayCondition(0.0, 150000.0)
             },
-            // The satellite dish/antenna (True Scale Cylinder - 4 meters long)
+            // The satellite dish/antenna (True Scale Cylinder - tiny 2 meters)
             cylinder: {
-                length: 4.0,
-                topRadius: 1.0,
+                length: 2.0,
+                topRadius: 0.5,
                 bottomRadius: 0.0,
                 material: Color.fromCssColorString('#ffffff'),
-                distanceDisplayCondition: new DistanceDisplayCondition(0.0, 200000.0)
+                distanceDisplayCondition: new DistanceDisplayCondition(0.0, 150000.0)
             }
         });
         
@@ -130,6 +131,47 @@ export class SatelliteManager {
              }
              ptIndex++;
           }
+      }
+  }
+
+  showOrbit(sat: SatelliteData | null) {
+      this.viewer.entities.removeById('active-orbit');
+      if (!sat) return;
+
+      try {
+          const satrec = twoline2satrec(sat.tle1, sat.tle2);
+          const positions = [];
+          
+          // Generate an orbital ring over 100 minutes
+          const now = Date.now();
+          for (let i = 0; i < 100; i += 1.5) {
+              const t = new Date(now + i * 60000); // add 'i' minutes
+              const posVel = propagate(satrec, t);
+              if (posVel.position && typeof posVel.position !== 'boolean') {
+                  const gmst = gstime(t);
+                  const posEcf = eciToEcf(posVel.position, gmst) as any;
+                  positions.push(new Cartesian3(posEcf.x * 1000, posEcf.y * 1000, posEcf.z * 1000));
+              }
+          }
+
+          if (positions.length > 0) {
+              // Close the loop
+              positions.push(positions[0]);
+              
+              const color = sat.type === 'MEO' ? '#ffc040' : sat.type === 'GEO' ? '#ff6060' : '#00e676';
+
+              this.viewer.entities.add({
+                  id: 'active-orbit',
+                  polyline: {
+                      positions: positions,
+                      width: 2,
+                      material: Color.fromCssColorString(color).withAlpha(0.6),
+                      arcType: ArcType.NONE
+                  }
+              });
+          }
+      } catch (e) {
+          console.error("Failed to generate orbit line:", e);
       }
   }
 }

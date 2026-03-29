@@ -15,6 +15,7 @@ async function bootstrap() {
 
     // 3. Initialize Satellite Manager
     const satelliteManager = new SatelliteManager(viewer, ui);
+    ui.onSatelliteClicked = (sat: any) => satelliteManager.showOrbit(sat);
 
     // 4. Load TLE Data
     const loader = new TLELoader();
